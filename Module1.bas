@@ -1,4 +1,3 @@
-Attribute VB_Name = "Module1"
 Dim objRegex As Object
 Dim cell As Range
 Dim datesColumn As Range
@@ -15,14 +14,15 @@ Sub Dates_PT()
     lastRow = Cells(Rows.Count, 1).End(xlUp).Row ' This gets the last row of the sheet
     Set datesColumn = Range(Cells(2, 9), Cells(lastRow, 9)) ' This specifies which is the 'Incl.Dates' column, 8th column from cell H2 to cell H_lastRow
     
+    DuplicateSheet
+    HyperlinkColumn
     VisualAdjustment
     SymbolRemoval
     DaysRemoval
     FixDateInExcelFormat
-    InitialReplacementsES
+    InitialReplacementsPT
     SwapMonthYear
-    HyperlinkColumn
-        
+    
     datesColumn.Replace What:="Mai", Replacement:="Maio" ' Replaces Mai for Maio in all Incl.Dates cells
 End Sub
 '-------------------------------------------------------
@@ -56,14 +56,16 @@ End Sub
     ' 4 - we remove dates in the numbered excel format, replacing them for YYYY mmm;
     ' 5 - we remove English months, "aprox" words, capitalized letters, et cetera;
     ' 6 - we swap months for years
+    
+    DuplicateSheet
+    HyperlinkColumn
     VisualAdjustment
     SymbolRemoval
     DaysRemoval
     FixDateInExcelFormat
     InitialReplacementsES
     SwapMonthYear
-    HyperlinkColumn
-    
+
     datesColumn.Replace What:="may", Replacement:="mayo" ' Replaces Mai for Maio in all Incl.Dates cells
  End Sub
 Private Sub VisualAdjustment()
@@ -88,7 +90,7 @@ Private Sub VisualAdjustment()
          .SplitRow = 1
      End With
      ActiveWindow.FreezePanes = True
-     ActiveSheet.Range("A1").AutoFilter
+     If ActiveSheet.AutoFilterMode = False Then ActiveSheet.Range("A1").AutoFilter
      Columns("A:K").EntireColumn.AutoFit
     '--------------------------------------------------------
 End Sub
@@ -130,7 +132,7 @@ lastRow = Cells(Rows.Count, 1).End(xlUp).Row ' This gets the last row of the she
 Set datesColumn = Range(Cells(2, 9), Cells(lastRow, 9)) ' This specifies which is the 'Incl.Dates' column, 8th column from cell H2 to cell H_lastRow
 
 With datesColumn ' The With block is used when we want to run a specific action within an object multiple times - this way we don't have to repeat the object many times in the code
-    .Replace What:="–", Replacement:="-" 'in every value in the range datesColumn, replace What for Replacement
+    .Replace What:="â€“", Replacement:="-" 'in every value in the range datesColumn, replace What for Replacement
     .Replace What:="aprox. ", Replacement:=""
 End With
 
@@ -242,7 +244,7 @@ Private Sub InitialReplacementsES()
         .Replace What:="Oct", Replacement:="oct"
         .Replace What:="Nov", Replacement:="nov"
         .Replace What:="Dic", Replacement:="dic"
-        .Replace What:="–", Replacement:="-"
+        .Replace What:="â€“", Replacement:="-"
         .Replace What:="/", Replacement:=" "
         
      End With
@@ -270,7 +272,7 @@ Private Sub InitialReplacementsPT()
         .Replace What:="December", Replacement:="Dez"
         .Replace What:="Janeiro", Replacement:="Jan"
         .Replace What:="Fevereiro", Replacement:="Fev"
-        .Replace What:="Março", Replacement:="Mar"
+        .Replace What:="MarÃ§o", Replacement:="Mar"
         .Replace What:="Abril", Replacement:="Abr"
         .Replace What:="Maio", Replacement:="Mai"
         .Replace What:="Junho", Replacement:="Jun"
@@ -299,10 +301,9 @@ Private Sub InitialReplacementsPT()
         .Replace What:="out", Replacement:="Out", MatchCase:=True
         .Replace What:="nov", Replacement:="Nov", MatchCase:=True
         .Replace What:="dez", Replacement:="Dez", MatchCase:=True
-        .Replace What:="-", Replacement:="-"
+        .Replace What:="â€“", Replacement:="-"
         .Replace What:="/", Replacement:="-"
         .Replace What:=".", Replacement:="-"
-        .Replace What:=" ", Replacement:="-"
      End With
 End Sub
 
@@ -314,32 +315,8 @@ Private Sub SwapMonthYear()
      
  For Each cell In datesColumn
         
-    objRegex.Pattern = "\d{4}" ' Escaping correct value YYYY
-     If objRegex.test(cell.Value) And Len(cell.Value) = 4 Then GoTo RightCell
-     
-     objRegex.Pattern = "\d{4}-\d{4}" ' Escaping correct value YYYY-YYYY
-     If objRegex.test(cell.Value) And Len(cell.Value) = 9 Then GoTo RightCell
-     
-     objRegex.Pattern = "\d{4} [a-zA-Z]{3}" ' Escaping correct value YYYY mmm
-     If objRegex.test(cell.Value) And Len(cell.Value) = 8 Then
-        cell.Replace What:="-", Replacement:=" "
-        GoTo RightCell
-     End If
-     
-     objRegex.Pattern = "\d{4} [a-zA-Z]{3}-[a-zA-Z]{3}" ' Escaping correct value YYYY mmm-mmm
-     If objRegex.test(cell.Value) And Len(cell.Value) = 12 Then
-        tempText1 = Right(cell.Value, 7)
-        cell.Value = Left(cell.Value, 4) & " " & tempText1
-        GoTo RightCell
-     End If
-     
-     objRegex.Pattern = "\d{4} [a-zA-Z]{3}-\d{4} a-zA-Z{3}" ' Escaping correct value YYYY mmm-YYYY mmm
-     If objRegex.test(cell.Value) And Len(cell.Value) = 17 Then
-        tempText1 = Left(cell.Value, 8)
-        tempText2 = Right(cell.Value, 8)
-        cell.Value = Replace(tempText1, "-", " ") & "-" & Replace(tempText2, "-", " ")
-        GoTo RightCell
-     End If
+    objRegex.Pattern = "^\d{4}" ' Escaping correct value YYYY
+    If objRegex.test(cell.Value) Then GoTo RightCell
         
     flag = InStr(cell.Value, "-") ' InStr is a function to give me the position in which something is found within a String
     ' in this case, I want to know where the dash is, because in the Spanish dates, the dashes are being used only once.
@@ -368,4 +345,10 @@ Private Sub HyperlinkColumn()
         linkText = "https://www.familysearch.org/records/images/search-results?dgsNumbers=" & testText1
         ActiveSheet.Hyperlinks.Add Cells(i, 6), Address:=linkText, TextToDisplay:=Cells(i, 10).Text
      Next i
+End Sub
+
+Private Sub DuplicateSheet()
+    ActiveSheet.Range("A1").Activate
+    ActiveSheet.Copy After:=Worksheets(Sheets.Count)
+    ActiveSheet.Name = "Review"
 End Sub
