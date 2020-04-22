@@ -9,11 +9,7 @@ Dim datesColumn As Range
 '
 '-------------------------------------------------------
 Sub Dates_PT()
-
-    Set objRegex = CreateObject("VBScript.RegExp") ' This object allows usage of regular expressions (RegEx) to search for text patterns (see below)
-    lastRow = Cells(Rows.Count, 1).End(xlUp).Row ' This gets the last row of the sheet
-    Set datesColumn = Range(Cells(2, 9), Cells(lastRow, 9)) ' This specifies which is the 'Incl.Dates' column, 8th column from cell H2 to cell H_lastRow
-    
+    Application.ScreenUpdating = False
     DuplicateSheet
     HyperlinkColumn
     VisualAdjustment
@@ -22,8 +18,10 @@ Sub Dates_PT()
     FixDateInExcelFormat
     InitialReplacementsPT
     SwapMonthYear
-    
-    datesColumn.Replace What:="Mai", Replacement:="Maio" ' Replaces Mai for Maio in all Incl.Dates cells
+    SortByDateTypePT
+    FixRecordTypesPT
+    GetYearRange
+    Application.ScreenUpdating = True
 End Sub
 '-------------------------------------------------------
 '
@@ -32,31 +30,7 @@ End Sub
 '
 '-------------------------------------------------------
  Sub Dates_ES()
-     lastRow = Cells(Rows.Count, 1).End(xlUp).Row ' This gets the last row of the sheet
-     Set datesColumn = Range(Cells(2, 9), Cells(lastRow, 9)) ' This specifies which is the 'Incl.Dates' column, 8th column from cell H2 to cell H_lastRow
-    '
-    ' These lines below are references to private subroutines (you can see them below)
-    '
-    ' It is good practice to always subdivide longer tasks into smaller subroutines;
-    '
-    ' This also has the benefit to make it easier to reuse code in the future if needed, or to identify mistakes on the code.
-    '
-    ' A private subroutine is a block of code that can only be accessed by a subroutine within the same module, and that isn't
-    ' visible on the Macros menu of Excel.
-    '
-    ' To create one, all you need to do is to add the keyword Private before the declaration of a subroutine.
-    '
-    ' As seen below, to invoke a subroutine, you just have to type its name. There is no restriction on how many times
-    ' a subroutine can be used: for example, if we needed to run the DaysRemoval 10 times, we could just type in the name
-    ' 10 times in a sequence, or use a loop (I can show you how to do loops later on as well).
-    ' ---
-    ' 1 - we format the columns and add the filter;
-    ' 2 - we remove the weird symbols;
-    ' 3 - we remove all days from the cells, leaving only months and years;
-    ' 4 - we remove dates in the numbered excel format, replacing them for YYYY mmm;
-    ' 5 - we remove English months, "aprox" words, capitalized letters, et cetera;
-    ' 6 - we swap months for years
-    
+    Application.ScreenUpdating = False
     DuplicateSheet
     HyperlinkColumn
     VisualAdjustment
@@ -65,8 +39,8 @@ End Sub
     FixDateInExcelFormat
     InitialReplacementsES
     SwapMonthYear
-
-    datesColumn.Replace What:="may", Replacement:="mayo" ' Replaces Mai for Maio in all Incl.Dates cells
+    GetYearRange
+    Application.ScreenUpdating = True
  End Sub
 Private Sub VisualAdjustment()
     '-------------------------------------------------------
@@ -82,16 +56,21 @@ Private Sub VisualAdjustment()
     ' (note the following standard: everything in VBA/Excel is done to an object)
     '
     ' The third step is to have all columns from A to K set to Auto Fit
-    ' (the object here is the range A:K of the Columns object, the property
+    ' (the object here is the range A:N of the Columns object, the property
     ' is EntireColumn and the action is AutoFit - another pattern to be observed)
     '-------------------------------------------------------
+     lastRow = Cells(Rows.Count, 1).End(xlUp).Row
+     Range("M1").Value = "Missing Dates"
+     Range("M1:M" & lastRow).Style = "Bad"
+     Range("N1").Value = "Notas"
+     
      With ActiveWindow
          .SplitColumn = 0
          .SplitRow = 1
      End With
      ActiveWindow.FreezePanes = True
      If ActiveSheet.AutoFilterMode = False Then ActiveSheet.Range("A1").AutoFilter
-     Columns("A:K").EntireColumn.AutoFit
+     Columns("A:N").EntireColumn.AutoFit
     '--------------------------------------------------------
 End Sub
 
@@ -100,8 +79,7 @@ Private Sub SymbolRemoval()
  Set objRegex = CreateObject("VBScript.RegExp") ' This object allows usage of regular expressions (RegEx) to search for text patterns (see below)
      lastRow = Cells(Rows.Count, 1).End(xlUp).Row ' This gets the last row of the sheet
      Set datesColumn = Range(Cells(2, 9), Cells(lastRow, 9)) ' This specifies which is the 'Incl.Dates' column, 8th column from cell H2 to cell H_lastRow
-     
-     
+        
      For Each cell In datesColumn
           
      With objRegex
@@ -159,7 +137,6 @@ For Each cell In datesColumn ' the pattern to be looked for in the datesColumn r
     objRegex.Pattern = "-\d{1,2} "
     If objRegex.test(cell.Value) Then cell.Value = objRegex.Replace(cell.Value, "-")
 Next cell
-
 End Sub
 
 Private Sub FixDateInExcelFormat()
@@ -183,7 +160,6 @@ Set datesColumn = Range(Cells(2, 9), Cells(lastRow, 9)) ' This specifies which i
             cell.Value = Format(tempText1, "YYYY") & " " & Format(tempText1, "mmm")
         End If ' Since the instructions after the Then keyword are in multiple lines, you need to specify an End If line, to indicate the end of the conditions.
      Next cell ' The for each loop is enclosed by these two lines: the for each declaration and the Next object line.
-
 End Sub
 
 Private Sub InitialReplacementsES()
@@ -246,9 +222,7 @@ Private Sub InitialReplacementsES()
         .Replace What:="Dic", Replacement:="dic"
         .Replace What:="–", Replacement:="-"
         .Replace What:="/", Replacement:=" "
-        
      End With
-    '--------------------------------------------------------
 End Sub
 
 Private Sub InitialReplacementsPT()
@@ -351,4 +325,96 @@ Private Sub DuplicateSheet()
     ActiveSheet.Range("A1").Activate
     ActiveSheet.Copy After:=Worksheets(Sheets.Count)
     ActiveSheet.Name = "Review"
+End Sub
+
+Sub SortByDateTypePT()
+    Application.ScreenUpdating = False
+    lastRow = Cells(Rows.Count, 1).End(xlUp).Row
+    Columns("I:I").Replace What:="Maio", Replacement:="Mai"
+    Columns("O:O").EntireColumn.Insert
+    Dim ymColumn As Range
+    Set ymColumn = Range("O2:O" & lastRow)
+    ActiveSheet.Sort.SortFields.Clear
+    For Each cell In ymColumn
+        tempYear = Left(Cells(cell.Row, 9).Value, 4)
+        flag = Len(Cells(cell.Row, 9).Value)
+        Select Case flag
+            Case Is = 4
+                cell.Value = tempYear
+            Case Is = 8
+                tempMonth = Right(Cells(cell.Row, 9).Value, 3)
+                cell.Value = tempYear & " " & tempMonth
+            Case Else
+                tempMonth = Mid(Cells(cell.Row, 9).Value, 6, 3)
+                cell.Value = tempYear & " " & tempMonth
+        End Select
+    Next cell
+    Range("A2:O" & lastRow).Sort key1:=Range("K2"), key2:=Range("G2"), key3:=Range("O2")
+    Columns("O:O").EntireColumn.Delete
+    Columns("I:I").Replace What:="Mai", Replacement:="Maio"
+    Application.ScreenUpdating = True
+End Sub
+
+Sub SortByDateTypeES()
+    Application.ScreenUpdating = False
+    lastRow = Cells(Rows.Count, 1).End(xlUp).Row
+    Columns("I:I").Replace What:="Mayo", Replacement:="May"
+    Columns("O:O").EntireColumn.Insert
+    Dim ymColumn As Range
+    Set ymColumn = Range("O2:O" & lastRow)
+    ActiveSheet.Sort.SortFields.Clear
+    For Each cell In ymColumn
+        tempYear = Left(Cells(cell.Row, 9).Value, 4)
+        flag = Len(Cells(cell.Row, 9).Value)
+        Select Case flag
+            Case Is = 4
+                cell.Value = tempYear
+            Case Is = 8
+                tempMonth = Right(Cells(cell.Row, 9).Value, 3)
+                cell.Value = tempYear & " " & tempMonth
+            Case Else
+                tempMonth = Mid(Cells(cell.Row, 9).Value, 6, 3)
+                cell.Value = tempYear & " " & tempMonth
+        End Select
+    Next cell
+    Range("A2:O" & lastRow).Sort key1:=Range("K2"), key2:=Range("G2"), key3:=Range("O2")
+    Columns("O:O").EntireColumn.Delete
+    Columns("I:I").Replace What:="May", Replacement:="Mayo"
+    Application.ScreenUpdating = True
+End Sub
+
+Private Sub FixRecordTypesPT()
+    
+    With Columns("F:F")
+        .Replace What:="Matrimónios", Replacement:="Casamentos"
+        .Replace What:="Matrimônios", Replacement:="Casamentos"
+    End With
+
+End Sub
+
+Sub GetYearRange()
+    lastRow = Cells(Rows.Count, 1).End(xlUp).Row
+    Dim minYrColumn, maxYrColumn As Range
+        Set minYrColumn = Range("O2:O" & lastRow)
+        Set maxYrColumn = Range("P2:P" & lastRow)
+        
+        minValue = 2099
+        maxValue = 1
+        
+    For Each cell In minYrColumn
+        cell.Value = Left(Cells(cell.Row, 9).Value, 4)
+        If cell < minValue Then minValue = cell
+    Next cell
+    
+    For Each cell In maxYrColumn
+        If Len(Cells(cell.Row, 9).Value) = 17 Then
+            cell.Value = Mid(Cells(cell.Row, 9).Value, 10, 4)
+        Else
+            cell.Value = ""
+        End If
+        If cell > maxValue Then maxValue = cell
+    Next cell
+        Range("Q2") = minValue
+        Range("Q3") = maxValue
+        Range("O:P").EntireColumn.Delete
 End Sub
